@@ -1,0 +1,89 @@
+main {
+  width: 33rem;
+  margin: 33px auto;
+  border: var(--border);
+  border-radius: 15px;
+  background: transparent;
+}
+
+h1 {
+  padding-top: 1rem;
+  color: var(--header-color);
+  font-size: 2rem;
+  text-align: center;
+}
+
+h1 span {
+  display: inline-block;
+  width: 5.7rem;
+  height: 5.7rem;
+  font-size: 2.7em;
+}
+
+.grid {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: space-around;
+  width: 30rem;
+  height: 30rem;
+  margin: 0 auto;
+}
+
+label {
+  display: block;
+  width: 5.7rem;
+  height: 5.7rem;
+  border: var(--border);
+  border-radius: 15px;
+  background: var(--primary-color);
+}
+
+label input {
+  display: none;
+}
+
+label input:checked + .mark {
+  background: transparent;
+  color: var(--background-color);
+}
+
+label .mark {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 5.34rem;
+  height: 5.34rem;
+  padding: 0.2rem;
+  border-radius: 12px;
+  background: var(--background-color);
+  font-size: 0.9em;
+  text-align: center;
+}
+
+small {
+  display: block;
+  padding: 1em;
+  text-align: center;
+}
+
+#generate-card {
+  display: block;
+  margin: 0 auto 1.2rem;
+  padding: 0.45rem 1rem;
+  border: var(--border);
+  border-radius: 12px;
+  background: var(--primary-color);
+  color: var(--header-color);
+  font-family: "Tiny5", sans-serif;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+#generate-card:hover {
+  background: var(--primary-light);
+  color: var(--text-dark);
+}
+
+#generate-card:active {
+  transform: translateY(2px);
+}

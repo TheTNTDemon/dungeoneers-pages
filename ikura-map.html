@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>CoI Map | Dungeoneer’s Pages</title>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap');
+
+    :root {
+      --bg-dark: #050814;
+      --blue-dark: #071426;
+      --blue-panel: rgba(7, 20, 38, 0.94);
+      --blue-panel-solid: #071426;
+
+      --red-dark: #3a0710;
+      --red-main: #7c1020;
+      --red-bright: #b32234;
+
+      --gold: #d6a84f;
+      --gold-light: #ffd37a;
+
+      --text-main: #f4e6c1;
+      --text-muted: #b89f78;
+
+      --shadow: rgba(0, 0, 0, 0.65);
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top left, rgba(124, 16, 32, 0.35), transparent 100%),
+        radial-gradient(circle at bottom right, rgba(12, 42, 78, 0.7), transparent 100%),
+        var(--bg-dark);
+      font-family: "IM Fell English", serif;
+      color: var(--text-main);
+    }
+
+    #viewport {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+
+    #viewport.dragging {
+      cursor: grabbing;
+    }
+
+    #world {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    #tileLayer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 11023px;
+      height: 5787px;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 1;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    .map-tile {
+      position: absolute;
+      display: block;
+      pointer-events: none;
+      user-select: none;
+      image-rendering: auto;
+      backface-visibility: hidden;
+      transform: translateZ(0);
+      opacity: 1;
+      contain: layout paint size;
+    }
+
+    #regionLayer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 5;
+      pointer-events: none;
+      isolation: isolate;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    .map-region {
+      pointer-events: auto;
+      fill: rgba(14, 36, 72, 0.1);
+      stroke: rgba(214, 168, 79, 0.8);
+      stroke-width: 3;
+      cursor: pointer;
+      transition:
+        fill 0.15s ease,
+        stroke 0.15s ease,
+        stroke-width 0.15s ease;
+      vector-effect: non-scaling-stroke;
+      shape-rendering: geometricPrecision;
+      paint-order: stroke fill;
+    }
+
+    #viewport.moving .map-region {
+      transition: none;
+    }
+
+    .map-region:hover {
+      fill: rgba(14, 36, 72, 0.28);
+      stroke: var(--gold-light);
+      stroke-width: 4;
+    }
+
+    .map-region.active {
+      fill: rgba(124, 16, 32, 0.28);
+      stroke: var(--gold-light);
+      stroke-width: 5;
+    }
+
+    #controls {
+      position: fixed;
+      left: 5px;
+      top: 5px;
+      z-index: 25;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      max-width: 480px;
+      padding: 10px;
+      background:
+        linear-gradient(180deg, rgba(7, 20, 38, 0.92), rgba(58, 7, 16, 0.88));
+      border: 2px solid rgba(214, 168, 79, 0.75);
+      box-shadow:
+        0 0 0 2px rgba(0, 0, 0, 0.45),
+        0 12px 30px var(--shadow),
+        inset 0 0 24px rgba(214, 168, 79, 0.08);
+    }
+
+    #controls::before,
+    #controls::after {
+      content: "✦";
+      color: var(--gold);
+      align-self: center;
+      font-size: 14px;
+      text-shadow: 0 0 8px rgba(255, 211, 122, 0.8);
+    }
+
+    #controls button {
+      border: 2px solid var(--gold);
+      padding: 8px 13px;
+      min-width: 38px;
+      min-height: 34px;
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+
+      background:
+        linear-gradient(180deg, var(--red-main), var(--red-dark));
+      color: var(--text-main);
+      font-family: "IM Fell English", serif;
+      font-size: 14px;
+      line-height: 1;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-sizing: border-box;
+      appearance: none;
+      -webkit-appearance: none;
+      text-align: center;
+      box-shadow:
+        inset 0 0 8px rgba(255, 211, 122, 0.12),
+        0 4px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    #controls button .buttonText,
+    #closePanel .buttonText {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      display: block;
+      width: 1em;
+      height: 1em;
+      line-height: 1em;
+      text-align: center;
+      pointer-events: none;
+      letter-spacing: 0;
+      font-family: "IM Fell English", serif;
+      font-weight: normal;
+      transform: translate(-50%, -50%) translate(var(--button-text-x, 0), var(--button-text-y, 0));
+    }
+
+    #controls .zoomButton {
+      width: 38px;
+      height: 34px;
+      min-width: 38px;
+      min-height: 34px;
+      padding: 0;
+      font-size: 21px;
+      letter-spacing: 0;
+    }
+
+    #zoomInButton .buttonText {
+      --button-text-y: 0px;
+    }
+
+    #zoomOutButton .buttonText {
+      --button-text-y: 0px;
+    }
+
+    #controls button:hover {
+      background:
+        linear-gradient(180deg, var(--red-bright), var(--red-main));
+      color: var(--gold-light);
+      text-shadow: 0 0 8px rgba(255, 211, 122, 0.9);
+    }
+
+    #controls button:active {
+      transform: translateY(2px);
+      box-shadow:
+        inset 0 0 12px rgba(0, 0, 0, 0.45),
+        0 2px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    #infoPanel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 390px;
+      max-width: 88vw;
+      height: 100vh;
+      background:
+        radial-gradient(circle at top right, rgba(124, 16, 32, 0.38), transparent 38%),
+        linear-gradient(180deg, rgba(7, 20, 38, 0.98), rgba(4, 8, 18, 0.98));
+      color: var(--text-main);
+      padding: 28px;
+      box-sizing: border-box;
+      z-index: 30;
+      border-left: 3px solid var(--gold);
+      box-shadow:
+        -12px 0 32px rgba(0, 0, 0, 0.65),
+        inset 0 0 28px rgba(124, 16, 32, 0.25);
+      transition: transform 0.25s ease;
+      overflow-y: auto;
+    }
+
+    #infoPanel.hidden {
+      transform: translateX(100%);
+    }
+
+    #infoPanel::before {
+      content: "REGION SCROLL";
+      display: block;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      color: var(--gold-light);
+      font-size: 16px;
+      letter-spacing: 2px;
+      border-bottom: 2px solid rgba(214, 168, 79, 0.5);
+      text-shadow: 0 0 8px rgba(255, 211, 122, 0.5);
+    }
+
+    #closePanel {
+      position: absolute;
+      top: 14px;
+      right: 18px;
+      border: 2px solid var(--gold);
+      background:
+        linear-gradient(180deg, var(--red-main), var(--red-dark));
+      color: var(--text-main);
+      font-family: "IM Fell English", serif;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      width: 38px;
+      height: 38px;
+      padding: 0;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+
+      box-sizing: border-box;
+      appearance: none;
+      -webkit-appearance: none;
+      text-align: center;
+      letter-spacing: 0;
+      --button-text-y: 0px;
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    #closePanel:hover {
+      color: var(--gold-light);
+      background:
+        linear-gradient(180deg, var(--red-bright), var(--red-main));
+    }
+
+    #panelTitle {
+      margin: 34px 0 8px;
+      color: var(--gold-light);
+      font-size: 32px;
+      font-weight: normal;
+      letter-spacing: 2px;
+      text-shadow:
+        0 3px 0 rgba(0, 0, 0, 0.9),
+        0 0 12px rgba(255, 211, 122, 0.35);
+    }
+
+    #panelSubtitle {
+      margin: 0 0 22px;
+      color: var(--text-muted);
+      font-size: 16px;
+      letter-spacing: 1px;
+    }
+
+    #panelText {
+      line-height: 1.35;
+      font-size: 17px;
+      letter-spacing: 1px;
+      color: var(--text-main);
+    }
+
+    #panelMeta {
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 2px solid rgba(214, 168, 79, 0.35);
+      color: var(--text-muted);
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+
+    #panelMeta div {
+      margin-bottom: 10px;
+    }
+
+    #panelMeta strong {
+      color: var(--gold-light);
+      font-weight: normal;
+    }
+
+    .tag {
+      display: inline-block;
+      margin: 4px 4px 4px 0;
+      padding: 5px 10px;
+      background:
+        linear-gradient(180deg, rgba(124, 16, 32, 0.9), rgba(58, 7, 16, 0.9));
+      color: var(--gold-light);
+      border: 1px solid rgba(214, 168, 79, 0.75);
+      font-size: 12px;
+      letter-spacing: 1px;
+      box-shadow: inset 0 0 8px rgba(255, 211, 122, 0.08);
+    }
+
+    ::selection {
+      background: var(--red-main);
+      color: var(--gold-light);
+    }
+
+    @media (max-width: 700px) {
+      #controls {
+        left: 10px;
+        top: 10px;
+        max-width: calc(100vw - 20px);
+      }
+
+      #controls button {
+        font-size: 12px;
+        padding: 7px 10px;
+        min-width: 34px;
+        min-height: 32px;
+      }
+
+      #controls .zoomButton {
+        width: 34px;
+        height: 32px;
+        min-width: 34px;
+        min-height: 32px;
+        padding: 0;
+        font-size: 22px;
+      }
+
+      #infoPanel {
+        width: 100vw;
+        max-width: 100vw;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="viewport">
+    <div id="world">
+      <div id="tileLayer" aria-label="Fantasy Map"></div>
+
+      <svg
+        id="regionLayer"
+        preserveAspectRatio="none"
+      ></svg>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button id="fitButton">World View</button>
+    <button id="actualSizeButton">True Scale</button>
+    <button id="zoomOutButton" class="zoomButton" aria-label="Zoom out"><span class="buttonText">−</span></button>
+    <button id="zoomInButton" class="zoomButton" aria-label="Zoom in"><span class="buttonText">+</span></button>
+  </div>
+
+  <aside id="infoPanel" class="hidden">
+    <button id="closePanel" aria-label="Close panel"><span class="buttonText">×</span></button>
+
+    <h2 id="panelTitle"></h2>
+    <p id="panelSubtitle"></p>
+    <p id="panelText"></p>
+
+    <div id="panelMeta"></div>
+  </aside>
+
+  <script>
+    const IMAGE_WIDTH = 11023;
+    const IMAGE_HEIGHT = 5787;
+
+    const TILE_SIZE = 512;
+    const TILE_EXTENSION = "png";
+    const TILE_BASE_PATH = "./assets/tiles";
+    const MIN_TILE_ZOOM = 0;
+    const MAX_TILE_ZOOM = 5;
+    const TILE_BUFFER = 1;
+
+    const TILE_LEVELS = [
+      { z: 0, width: 345, height: 181 },
+      { z: 1, width: 689, height: 362 },
+      { z: 2, width: 1378, height: 723 },
+      { z: 3, width: 2756, height: 1447 },
+      { z: 4, width: 5512, height: 2894 },
+      { z: 5, width: 11023, height: 5787 }
+    ];
+
+    const TILE_QUALITY_MULTIPLIER = 1.25;
+
+    const TILE_SEAM_OVERLAP_PIXELS = 1;
+
+    const viewport = document.getElementById("viewport");
+    const world = document.getElementById("world");
+    const tileLayer = document.getElementById("tileLayer");
+    const regionLayer = document.getElementById("regionLayer");
+
+    const fitButton = document.getElementById("fitButton");
+    const actualSizeButton = document.getElementById("actualSizeButton");
+    const zoomOutButton = document.getElementById("zoomOutButton");
+    const zoomInButton = document.getElementById("zoomInButton");
+
+    const infoPanel = document.getElementById("infoPanel");
+    const closePanel = document.getElementById("closePanel");
+    const panelTitle = document.getElementById("panelTitle");
+    const panelSubtitle = document.getElementById("panelSubtitle");
+    const panelText = document.getElementById("panelText");
+    const panelMeta = document.getElementById("panelMeta");
+
+    tileLayer.style.width = `${IMAGE_WIDTH}px`;
+    tileLayer.style.height = `${IMAGE_HEIGHT}px`;
+
+    regionLayer.setAttribute("viewBox", `0 0 ${IMAGE_WIDTH} ${IMAGE_HEIGHT}`);
+    regionLayer.style.width = `${IMAGE_WIDTH}px`;
+    regionLayer.style.height = `${IMAGE_HEIGHT}px`;
+
+    const regions = [
+      // {
+      //   id: "dragons-deep",
+      //   title: "Dragon's Deep",
+      //   subtitle: "Deep in them dragons",
+      //   description: "Dragon’s Deep has long been the most important hub of sea-trade to the Ikurian Kingdom. Its advantageous location between the in-land Siren’s Sea and the Ikurian ocean makes sure all trade to and from the Siren’s Sea passes through it. Daily its ships imports and exports goods and resources from almost every part of the continent to and from the Kingdom of Ikura. Its most prominent trading partners come from The far-off Vasmirean isles across the ocean, and the Kingdom of Vara to the north. A lot of Dragon’s Deep’s imports also make their way to the capital city of Ëlah by the use of supply chains that run through the Siren’s Sea of other cities like Briggen and Bankfort. It’s name “Dragon’s Deep” comes from the numerous legends of dragons and other wyrms along the western coast of the continent.`",
+      //   shape: "poly",
+      //   coords: "1269,426,1298,424,1327,427,1362,434,1391,446,1410,458,1433,475,1451,492,1469,516,1485,542,1496,573,1503,600,1506,630,1506,655,1498,690,1486,719,1474,741,1458,762,1434,786,1415,802,1402,809,1426,811,1449,818,1466,828,1478,842,1483,858,1449,904,1439,910,1429,911,1421,905,1430,886,1414,882,1403,880,1388,880,1368,882,1354,885,1327,890,1313,890,1291,891,1266,888,1239,884,1215,878,1199,878,1182,879,1170,884,1163,889,1178,903,1170,909,1160,910,1151,908,1142,900,1134,894,1111,860,1112,844,1118,838,1125,830,1132,826,1148,821,1166,815,1182,813,1198,814,1179,798,1152,778,1138,758,1117,731,1110,711,1101,691,1096,666,1092,647,1092,632,1094,598,1099,576,1109,549,1118,530,1134,506,1148,491,1167,472,1190,456,1211,444,1229,438,1242,433,1258,429,1258,429",
+      //   tags: ["Kingdom", "Cold", "Mountains"],
+      //   extra: {
+      //     Ruler: "Queen Alvara",
+      //     Population: "1.2 million",
+      //     Threat: "Border raids"
+      //   }
+      // },
+      {
+        id: "dragons-deep",
+        title: "Dragon's Deep",
+        description: "Dragon’s Deep has long been the most important hub of sea-trade of the Ikurian Kingdom. Its advantageous location between the in-land Siren’s Sea and the Ikurian ocean makes sure all trade to and from the Siren’s Sea passes through it. Daily its ships imports and exports goods and resources from almost every part of the continent to and from the Kingdom of Ikura. Its most prominent trading partners come from The far-off Vasmirean isles across the ocean, and the Kingdom of Vara to the north. A lot of Dragon’s Deep’s imports also make their way to the capital city of Ëlah by the use of supply chains that run through the Siren’s Sea to other cities like Briggen and Bankfort. It’s name “Dragon’s Deep” comes from the numerous legends of dragons and other wyrms along the western coast of the continent.`",
+        shape: "poly",
+        coords: "1269,426,1298,424,1327,427,1362,434,1391,446,1410,458,1433,475,1451,492,1469,516,1485,542,1496,573,1503,600,1506,630,1506,655,1498,690,1486,719,1474,741,1458,762,1434,786,1415,802,1402,809,1426,811,1449,818,1466,828,1478,842,1483,858,1449,904,1439,910,1429,911,1421,905,1430,886,1414,882,1403,880,1388,880,1368,882,1354,885,1327,890,1313,890,1291,891,1266,888,1239,884,1215,878,1199,878,1182,879,1170,884,1163,889,1178,903,1170,909,1160,910,1151,908,1142,900,1134,894,1111,860,1112,844,1118,838,1125,830,1132,826,1148,821,1166,815,1182,813,1198,814,1179,798,1152,778,1138,758,1117,731,1110,711,1101,691,1096,666,1092,647,1092,632,1094,598,1099,576,1109,549,1118,530,1134,506,1148,491,1167,472,1190,456,1211,444,1229,438,1242,433,1258,429,1258,429",
+      },
+      {
+        id: "liliedorfh",
+        title: "Liliedorfh",
+        description: "The Wood-elves of Ikura are a reclusive folk who keep little contact with other civilisations. Preferring to keep to themselves in their woodlands. Liliedorfh houses the largest community of Wood-elves on the continent. Build around the reverence and protection of The Sanctum Tree, one of two giant arcane trees sprouted by the goddess Sylvanni during Ikura’s elder days. The Sanctum Tree and the forest surrounding it are closely tied to the realm of the fey and produces a magic effect which disorients any outsiders who enter the forest, making them lose their way. The elves of Liliedorfh do not take kindly to outsiders and prefer to live in harmony with their enchanted forest and the safety of the Sanctum Tree. The enchantment over the forest has also given the elves of Liliedorfh an edge against invaders, such as the kobolds of Kazagdun which tried invading the forest multiple times during the first and second Kobold Wars.",
+        shape: "poly",
+        coords: "3731,2730,3750,2730,3772,2733,3792,2738,3814,2746,3844,2762,3876,2786,3897,2810,3914,2837,3925,2860,3936,2891,3940,2918,3938,2948,3936,2974,3930,2997,3920,3022,3909,3046,3885,3075,3866,3093,3850,3104,3850,3117,3866,3119,3887,3128,3908,3137,3916,3151,3918,3162,3906,3184,3887,3208,3878,3214,3870,3215,3860,3213,3852,3207,3866,3192,3859,3189,3847,3186,3841,3184,3831,3182,3820,3182,3809,3184,3793,3186,3776,3190,3766,3194,3750,3193,3735,3193,3718,3193,3699,3191,3679,3188,3663,3184,3636,3182,3616,3184,3606,3190,3598,3193,3610,3209,3602,3214,3598,3214,3585,3213,3580,3207,3562,3191,3546,3163,3549,3153,3557,3141,3562,3138,3574,3130,3581,3128,3590,3123,3604,3121,3598,3090,3578,3074,3565,3054,3545,3024,3535,2988,3529,2956,3526,2932,3530,2902,3538,2870,3548,2846,3562,2819,3582,2796,3605,2774,3635,2754,3670,2740,3690,2735,3710,2731,3710,2731",
+      },
+      {
+        id: "ironhills",
+        title: "Ironhills",
+        description: "The Ironhills is the mountain realm of the Dwarven folk. These mountains have long been their homes before even the Ikurian kingdom was established. They build their kingdoms under the earth and stone of the world, their halls and tunnels stretching deep into the roots of their mountains. Here minerals, ores and rock is carved, harvested and forged into great weapons, armour and jewellery. The true scope of the Dwarvish realms under the Ironhills is hard to comprehend. With so many tunnels and halls even the dwarves might have forgotten many of their old passages. From the surface the Ironhills look like your average mountain range but under the earth the realm of the Dwarves is sprawling and vast, thriving and strong.",
+        shape: "poly",
+        coords: "5266,245,5287,244,5307,247,5331,249,5358,261,5378,267,5407,288,5429,311,5456,338,5469,364,5480,402,5486,446,5486,482,5479,513,5460,555,5433,592,5408,616,5382,630,5416,634,5452,652,5467,677,5450,709,5426,730,5409,731,5401,724,5415,708,5392,701,5369,701,5344,706,5302,713,5278,712,5240,710,5210,703,5180,699,5153,704,5145,709,5161,726,5147,730,5132,728,5118,717,5109,706,5093,680,5093,670,5107,656,5124,641,5168,633,5180,633,5161,621,5148,608,5128,590,5116,572,5108,564,5092,533,5083,509,5076,472,5075,438,5078,407,5087,378,5104,346,5125,317,5148,295,5168,280,5187,269,5210,259,5232,252,5252,247,5252,247",
+      },
+      {
+        id: "elah",
+        title: "Ëlah",
+        // subtitle: "Circular lake region",
+        description: "Ëlah, The Great City of Crowns, The Jewel of Ikura. The Greatest seat of power within the Kingdom of Ikura and on the Ikurian continent as a whole. Construction on the city began in the Age of The Wild against the side of the White Cliff as a collaboration between human, dwarven and elvish hands. All working together to create a magnificent city as a beacon of hope and community for the future. The mix of cultural architecture makes Ëlah stand out as one of the most beautiful architectural marvels of the early ages. Now Ëlah stands as the largest city on the continent, rivalling even the ancient cities of the High-elves which fell after the War of Gods.<br><br>Ëlah is also home to Queen Merilla Lazuli and the Ikurian royal Lazuli family which reside in the citadel at Ëlah’s crown. Here gather the rulers of the continent within the Court of Crowns to discuss diplomatic matters of importance and plot the future of the continent. People from all corners of the continent travel to Ikura in hopes of starting a new and better life within this legendary city.",
+        shape: "poly",
+        coords: "3028,935,3051,936,3079,941,3110,952,3141,966,3161,982,3184,1005,3211,1042,3221,1070,3231,1102,3236,1126,3234,1157,3230,1186,3223,1208,3213,1234,3200,1254,3184,1275,3164,1294,3150,1307,3131,1320,3157,1322,3186,1330,3201,1344,3213,1363,3212,1370,3182,1414,3168,1421,3153,1419,3148,1413,3160,1396,3144,1391,3130,1386,3110,1388,3086,1392,3068,1396,3050,1400,3024,1400,2993,1398,2968,1393,2950,1388,2931,1386,2917,1388,2902,1391,2894,1397,2905,1412,2902,1418,2894,1421,2882,1421,2875,1413,2842,1372,2842,1359,2846,1351,2856,1342,2869,1334,2891,1326,2907,1323,2923,1320,2910,1309,2890,1295,2879,1282,2866,1270,2852,1249,2843,1230,2834,1208,2826,1186,2824,1166,2822,1142,2824,1110,2829,1084,2840,1054,2855,1026,2874,1003,2890,990,2918,966,2938,955,2968,943,3001,935,3018,934,3018,934",
+        // tags: ["Lake", "Magic", "Circle shape"],
+        // extra: {
+        //   Depth: "Unknown",
+        //   Danger: "Medium"
+        // }
+      },
+      {
+        id: "rin-capital",
+        title: "Rin Capital",
+        description: "Rin is a small duchy that has been under the rule of the Ikurian kingdom for a very long time now. A remnant of the expansionist movement of kingdoms during the early ages of the Post-Calamity era. The duchy of Rin is in current days known for its agriculture and farmland, exporting a lot of grain and other grown fruits and vegetables, along with renowned wines. Rin is a very old nation, its capital being amongst the oldest human cities on the continent. It has a vast religious history and has kept its religious importance to the modern day. Its capital being seen as the religious capital of the continent, housing the world renowned Divine Cathedral atop the city’s crown plateau. Along with its religious importance, another culture the Rin Capital is known for is its artistic culture. With many people coming to the Rin country to seek inspiration in the lavishes of its serenity and beauty. A beautiful city of religion and artistic expression in the middle of rural farmland.",
+        shape: "poly",
+        coords: "2863,3644,2881,3643,2908,3645,2930,3649,2956,3657,2974,3668,3001,3684,3014,3694,3035,3710,3053,3735,3070,3768,3084,3814,3090,3842,3086,3870,3078,3913,3068,3939,3051,3970,3030,3994,3002,4018,2982,4026,2991,4030,3030,4037,3046,4046,3059,4058,3064,4070,3066,4079,3034,4122,3019,4129,3006,4126,3003,4122,3014,4107,3001,4101,2977,4095,2962,4096,2944,4100,2924,4103,2899,4108,2878,4106,2852,4105,2822,4100,2793,4098,2774,4096,2756,4100,2745,4105,2760,4124,2752,4128,2743,4128,2731,4126,2719,4116,2709,4101,2698,4086,2694,4076,2697,4061,2704,4054,2718,4045,2734,4036,2754,4032,2767,4030,2778,4030,2766,4021,2746,4006,2727,3989,2711,3966,2698,3942,2685,3912,2677,3880,2676,3854,2675,3827,2680,3799,2692,3762,2710,3737,2726,3714,2746,3693,2774,3673,2802,3660,2831,3650,2850,3646,2850,3646",
+      },
+      {
+        id: "veldhaven",
+        title: "Veldhaven",
+        description: "The city of Veldhaven, located at the eastern end of the Suther Coast is one of the newer cities on the continent. Having been established right after the first Kobold War, roughly 400 years ago, as a secure and fortified harbor city amongst the southern coastal mountains. Its towers and architecture being made of thick stone and modern building techniques, prepared as a safe haven for future conflicts such as the second Kobold War where it was to house and safeguard important supplies during the war time and was also the main staging grounds of Ikurian naval forces. It also housed a lot of refugees from towns who had been ravaged by the kobold armies of Kazagdun. When not in war time it is one of the more important hubs of trade for the eastern side of the kingdom. Veldhaven being among the three important coastal hubs of the Ikurian kingdom along with Dragon’s Deep in the north and Port Lionette in Rin.",
+        shape: "poly",
+        coords: "5174,4787,5208,4793,5252,4806,5280,4822,5305,4838,5334,4871,5360,4912,5370,4946,5374,4974,5375,5014,5370,5043,5362,5070,5343,5106,5326,5132,5298,5156,5269,5174,5306,5177,5327,5185,5343,5197,5352,5209,5354,5220,5342,5240,5326,5261,5320,5270,5310,5273,5302,5274,5291,5269,5289,5267,5301,5251,5289,5244,5274,5242,5261,5240,5249,5242,5229,5245,5210,5248,5186,5252,5164,5254,5137,5251,5112,5246,5088,5242,5067,5242,5046,5245,5036,5248,5046,5265,5042,5271,5029,5271,5020,5266,5011,5261,4997,5246,4986,5229,4983,5221,4986,5203,4998,5194,5026,5180,5044,5176,5067,5173,5039,5155,5017,5135,4994,5104,4982,5079,4967,5038,4963,5011,4964,4984,4966,4965,4970,4936,4978,4907,4996,4882,5011,4862,5040,4834,5070,4816,5100,4802,5130,4793,5154,4791,5154,4791",
+      },
+      {
+        id: "lithia",
+        title: "Lithia",
+        description: "Lithia is a crown city located high amongst the Black Mountains of the Duchy of Letheania. Much like Rin, Letheania has its own governance but still falls under the rule of the Kingdom of Ikura after it was annexed during the expansionist movement of kingdoms during the early ages Post-Calamity. Even to this day the relationship between the royal Lazuli family and Letheania’s ruling House of Dendriss has been strained. Lithia, Letheania’s capital sits amongst the cold mountain range which makes up most of Letheania’s borders. For this reason Lithia relies mostly on import as its region has barely any fertile land. However its position amongst the mountains does make it advantageous during war time. Lithia is a city mostly renowned for its gothic architecture and literature. Its proximity to the deserts of Raja also makes it an advantageous trading partner with the neighbouring dune kingdom.",
+        shape: "poly",
+        coords: "7974,2892,8002,2894,8040,2903,8067,2914,8099,2933,8131,2961,8156,2998,8171,3030,8179,3062,8183,3092,8180,3133,8170,3170,8154,3204,8129,3238,8102,3262,8078,3278,8106,3282,8129,3289,8147,3300,8158,3312,8159,3326,8151,3344,8126,3373,8113,3377,8102,3376,8097,3372,8108,3356,8094,3352,8069,3348,8048,3350,8017,3354,7987,3359,7955,3357,7924,3353,7893,3346,7866,3346,7842,3355,7853,3371,7845,3378,7830,3378,7818,3371,7806,3352,7790,3328,7791,3313,7798,3302,7814,3294,7833,3286,7879,3278,7858,3267,7828,3246,7806,3216,7787,3180,7774,3142,7770,3099,7772,3062,7786,3017,7806,2985,7823,2961,7848,2938,7874,2920,7900,2909,7922,2900,7954,2894,7954,2894",
+      },
+      {
+        id: "rivers-end",
+        title: "River's End",
+        description: "The city of River’s End in the south-east of the kingdom was not always the renowned city it is today, having once been a much smaller city not long ago. Its significance within the kingdom began 300 years ago with the establishment of the Crusader’s Guild within the city causing its economy, size, population and importance to boom very quickly. The Crusader’s Guild was an order of specialised knights and paladins trained in both combat and divine magic to become the kingdom’s strongest line of defence against threats. The Crusaders were created after the first Kobold War as preparation for a possible second war with Kazagdun’s kobolds, a fear which was warranted. River’s End became the main staging ground of the Crusader’s Guild, with their headquarters being in a building known as The Partheenun. Here recruits are trained and the various orders of Crusaders are send out all over the kingdom on specialised tasks. Despite River’s End being the staging ground of the kingdoms top knights it has still remained a peaceful corner of Ikura surrounded by farmland.",
+        shape: "poly",
+        coords: "8764,4086,8811,4091,8860,4106,8891,4127,8927,4158,8951,4198,8970,4247,8975,4290,8974,4326,8965,4360,8948,4395,8935,4420,8903,4452,8878,4470,8868,4475,8902,4477,8928,4486,8946,4498,8953,4514,8955,4521,8943,4542,8922,4566,8915,4570,8903,4574,8890,4570,8899,4552,8882,4543,8864,4541,8846,4541,8826,4546,8803,4550,8778,4553,8749,4552,8725,4549,8701,4544,8681,4542,8658,4542,8635,4547,8646,4566,8640,4572,8630,4573,8618,4570,8606,4558,8583,4523,8583,4508,8589,4498,8610,4486,8637,4478,8666,4474,8642,4458,8622,4441,8601,4415,8582,4382,8571,4353,8564,4321,8562,4290,8565,4263,8569,4238,8583,4206,8599,4179,8622,4151,8647,4128,8678,4107,8711,4097,8736,4090,8750,4089,8750,4089",
+      },
+      // {
+      //   id: "moonlake",
+      //   title: "Moonlake",
+      //   subtitle: "Circular lake region",
+      //   description: "A round lake said to glow during full moons. This region uses a circle shape.",
+      //   shape: "circle",
+      //   coords: "1280,260,90",
+      //   tags: ["Lake", "Magic", "Circle shape"],
+      //   extra: {
+      //     Depth: "Unknown",
+      //     Danger: "Medium"
+      //   }
+      // },
+      // {
+      //   id: "capital-city",
+      //   title: "Capital City",
+      //   subtitle: "Rectangular city marker",
+      //   description: "This is a rectangular area. Useful for cities, forts, buildings, or UI zones.",
+      //   shape: "rect",
+      //   coords: "610,610,760,730",
+      //   tags: ["City", "Capital", "Rect shape"],
+      //   extra: {
+      //     Population: "340,000",
+      //     Walls: "Triple-layered"
+      //   }
+      // }
+    ];
+
+    let scale = 1;
+    let minScale = 1;
+    let maxScale = 6;
+
+    let posX = 0;
+    let posY = 0;
+
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let startX = 0;
+    let startY = 0;
+    let movedDuringPointer = false;
+
+    function getFitScale() {
+      const viewportWidth = viewport.clientWidth;
+      const viewportHeight = viewport.clientHeight;
+
+      return Math.min(
+        viewportWidth / IMAGE_WIDTH,
+        viewportHeight / IMAGE_HEIGHT
+      );
+    }
+
+    function updateZoomLimits() {
+      minScale = getFitScale();
+      maxScale = Math.max(6, minScale);
+    }
+
+    function clampPosition() {
+      const viewportWidth = viewport.clientWidth;
+      const viewportHeight = viewport.clientHeight;
+
+      const scaledWidth = IMAGE_WIDTH * scale;
+      const scaledHeight = IMAGE_HEIGHT * scale;
+
+      if (scaledWidth <= viewportWidth) {
+        posX = (viewportWidth - scaledWidth) / 2;
+      } else {
+        const minX = viewportWidth - scaledWidth;
+        const maxX = 0;
+        posX = Math.min(maxX, Math.max(minX, posX));
+      }
+
+      if (scaledHeight <= viewportHeight) {
+        posY = (viewportHeight - scaledHeight) / 2;
+      } else {
+        const minY = viewportHeight - scaledHeight;
+        const maxY = 0;
+        posY = Math.min(maxY, Math.max(minY, posY));
+      }
+    }
+
+    const activeTiles = new Map();
+    let tileUpdateFrame = null;
+    let transformUpdateFrame = null;
+    let pendingTileUpdateAfterTransform = false;
+    let movingTimeout = null;
+    let lastTileZoom = null;
+    let lastTileUpdatePosX = 0;
+    let lastTileUpdatePosY = 0;
+
+    const TILE_STALE_KEEP_MS = 360;
+    const MOVE_SETTLE_MS = 120;
+    const DRAG_TILE_UPDATE_SCREEN_FRACTION = 0.5;
+
+    function markViewportMoving() {
+      viewport.classList.add("moving");
+
+      clearTimeout(movingTimeout);
+      movingTimeout = setTimeout(() => {
+        viewport.classList.remove("moving");
+        scheduleTileUpdate();
+      }, MOVE_SETTLE_MS);
+    }
+
+    function rememberTileUpdatePosition() {
+      lastTileUpdatePosX = posX;
+      lastTileUpdatePosY = posY;
+    }
+
+    function shouldUpdateTilesDuringDrag() {
+      const dragDistanceX = Math.abs(posX - lastTileUpdatePosX);
+      const dragDistanceY = Math.abs(posY - lastTileUpdatePosY);
+
+      const thresholdX = viewport.clientWidth * DRAG_TILE_UPDATE_SCREEN_FRACTION;
+      const thresholdY = viewport.clientHeight * DRAG_TILE_UPDATE_SCREEN_FRACTION;
+
+      return dragDistanceX >= thresholdX || dragDistanceY >= thresholdY;
+    }
+
+    function getTileLevel(tileZoom) {
+      return TILE_LEVELS.find(level => level.z === tileZoom);
+    }
+
+    function getTileZoomForCurrentScale() {
+      const targetScale = Math.min(1, scale * TILE_QUALITY_MULTIPLIER);
+
+      for (const level of TILE_LEVELS) {
+        const levelScaleX = level.width / IMAGE_WIDTH;
+        const levelScaleY = level.height / IMAGE_HEIGHT;
+        const levelScale = Math.min(levelScaleX, levelScaleY);
+
+        if (levelScale >= targetScale) {
+          return level.z;
+        }
+      }
+
+      return MAX_TILE_ZOOM;
+    }
+
+    function getVisibleWorldBounds() {
+      return {
+        left: Math.max(0, -posX / scale),
+        top: Math.max(0, -posY / scale),
+        right: Math.min(IMAGE_WIDTH, (-posX + viewport.clientWidth) / scale),
+        bottom: Math.min(IMAGE_HEIGHT, (-posY + viewport.clientHeight) / scale)
+      };
+    }
+
+    function getTileKey(tileZoom, x, y) {
+      return `${tileZoom}/${x}/${y}`;
+    }
+
+    function createTile(tileZoom, x, y, level, key) {
+      const tile = document.createElement("img");
+      tile.className = "map-tile";
+      tile.decoding = "async";
+      tile.loading = "eager";
+      tile.draggable = false;
+      tile.alt = "";
+      tile.setAttribute("aria-hidden", "true");
+      tile.dataset.tileZoom = String(tileZoom);
+      tile.style.zIndex = "20";
+
+      const levelScaleX = level.width / IMAGE_WIDTH;
+      const levelScaleY = level.height / IMAGE_HEIGHT;
+
+      const tilePixelLeft = x * TILE_SIZE;
+      const tilePixelTop = y * TILE_SIZE;
+      const tilePixelRight = Math.min(tilePixelLeft + TILE_SIZE, level.width);
+      const tilePixelBottom = Math.min(tilePixelTop + TILE_SIZE, level.height);
+
+      const worldLeft = tilePixelLeft / levelScaleX;
+      const worldTop = tilePixelTop / levelScaleY;
+      const worldRight = tilePixelRight / levelScaleX;
+      const worldBottom = tilePixelBottom / levelScaleY;
+
+      const seamOverlapX = TILE_SEAM_OVERLAP_PIXELS / levelScaleX;
+      const seamOverlapY = TILE_SEAM_OVERLAP_PIXELS / levelScaleY;
+
+      tile.style.left = `${worldLeft - seamOverlapX}px`;
+      tile.style.top = `${worldTop - seamOverlapY}px`;
+      tile.style.width = `${worldRight - worldLeft + seamOverlapX * 2}px`;
+      tile.style.height = `${worldBottom - worldTop + seamOverlapY * 2}px`;
+
+      tile.onload = null;
+
+      tile.onerror = () => {
+        removeTile(key);
+      };
+
+      tile.src = `${TILE_BASE_PATH}/z${tileZoom}/${x}_${y}.${TILE_EXTENSION}`;
+
+      return tile;
+    }
+
+    function removeTile(key) {
+      const record = activeTiles.get(key);
+
+      if (!record) return;
+
+      record.tile.remove();
+      activeTiles.delete(key);
+    }
+
+    function updateTileStacking(currentTileZoom) {
+      for (const record of activeTiles.values()) {
+        record.tile.style.zIndex = record.tileZoom === currentTileZoom ? "20" : "5";
+      }
+    }
+
+    function removeOldTiles(currentTileZoom, neededTiles) {
+      const now = performance.now();
+      const isMoving = viewport.classList.contains("moving");
+
+      for (const [key, record] of activeTiles) {
+        const isCurrentZoom = record.tileZoom === currentTileZoom;
+        const isNeededNow = neededTiles.has(key);
+        const isOldEnough = now - record.lastNeededAt > TILE_STALE_KEEP_MS;
+
+        if (isCurrentZoom && !isNeededNow) {
+          removeTile(key);
+          continue;
+        }
+
+        if (!isCurrentZoom && !isMoving && isOldEnough) {
+          removeTile(key);
+        }
+      }
+    }
+
+    function updateVisibleTilesNow() {
+      const tileZoom = getTileZoomForCurrentScale();
+      const level = getTileLevel(tileZoom);
+
+      if (!level) {
+        console.warn("Missing TILE_LEVELS entry for zoom:", tileZoom);
+        return;
+      }
+
+      const levelScaleX = level.width / IMAGE_WIDTH;
+      const levelScaleY = level.height / IMAGE_HEIGHT;
+      const tileWorldWidth = TILE_SIZE / levelScaleX;
+      const tileWorldHeight = TILE_SIZE / levelScaleY;
+
+      const bounds = getVisibleWorldBounds();
+
+      const maxTileX = Math.ceil(level.width / TILE_SIZE) - 1;
+      const maxTileY = Math.ceil(level.height / TILE_SIZE) - 1;
+
+      const startX = Math.max(0, Math.floor(bounds.left / tileWorldWidth) - TILE_BUFFER);
+      const startY = Math.max(0, Math.floor(bounds.top / tileWorldHeight) - TILE_BUFFER);
+      const endX = Math.min(maxTileX, Math.floor(bounds.right / tileWorldWidth) + TILE_BUFFER);
+      const endY = Math.min(maxTileY, Math.floor(bounds.bottom / tileWorldHeight) + TILE_BUFFER);
+
+      const neededTiles = new Set();
+      const now = performance.now();
+
+      if (lastTileZoom !== null && lastTileZoom !== tileZoom) {
+        // Keep old zoom-level tiles for a moment. This prevents blank flashes while
+        // the new zoom level's images are still decoding/loading.
+        for (const record of activeTiles.values()) {
+          if (record.tileZoom === lastTileZoom) {
+            record.lastNeededAt = now;
+          }
+        }
+      }
+
+      lastTileZoom = tileZoom;
+      updateTileStacking(tileZoom);
+
+      for (let y = startY; y <= endY; y++) {
+        for (let x = startX; x <= endX; x++) {
+          const key = getTileKey(tileZoom, x, y);
+          neededTiles.add(key);
+
+          let record = activeTiles.get(key);
+
+          if (!record) {
+            const tile = createTile(tileZoom, x, y, level, key);
+            record = { tile, tileZoom, x, y, lastNeededAt: now };
+            activeTiles.set(key, record);
+            tileLayer.appendChild(tile);
+          }
+
+          record.lastNeededAt = now;
+        }
+      }
+
+      updateTileStacking(tileZoom);
+      removeOldTiles(tileZoom, neededTiles);
+    }
+
+    function scheduleTileUpdate() {
+      if (tileUpdateFrame !== null) return;
+
+      tileUpdateFrame = requestAnimationFrame(() => {
+        tileUpdateFrame = null;
+        updateVisibleTilesNow();
+      });
+    }
+
+    function updateTransform({ updateTiles = true } = {}) {
+      pendingTileUpdateAfterTransform = pendingTileUpdateAfterTransform || updateTiles;
+
+      if (transformUpdateFrame !== null) return;
+
+      transformUpdateFrame = requestAnimationFrame(() => {
+        transformUpdateFrame = null;
+
+        clampPosition();
+
+        const transform = `translate3d(${posX}px, ${posY}px, 0) scale(${scale})`;
+        tileLayer.style.transform = transform;
+        regionLayer.style.transform = transform;
+        world.style.transform = "none";
+
+        markViewportMoving();
+
+        if (pendingTileUpdateAfterTransform) {
+          scheduleTileUpdate();
+        }
+
+        pendingTileUpdateAfterTransform = false;
+      });
+    }
+
+    function fitImageToScreen() {
+      updateZoomLimits();
+
+      scale = minScale;
+
+      posX = (viewport.clientWidth - IMAGE_WIDTH * scale) / 2;
+      posY = (viewport.clientHeight - IMAGE_HEIGHT * scale) / 2;
+
+      updateTransform();
+    }
+
+    function actualImageSize() {
+      updateZoomLimits();
+
+      scale = 1;
+      scale = Math.max(minScale, Math.min(maxScale, scale));
+
+      posX = (viewport.clientWidth - IMAGE_WIDTH * scale) / 2;
+      posY = (viewport.clientHeight - IMAGE_HEIGHT * scale) / 2;
+
+      updateTransform();
+    }
+
+    function zoomAtScreenPoint(newScale, screenX, screenY) {
+      updateZoomLimits();
+
+      const oldScale = scale;
+
+      newScale = Math.max(minScale, Math.min(maxScale, newScale));
+
+      if (Math.abs(newScale - oldScale) < 0.000001) {
+        return;
+      }
+
+      const imageX = (screenX - posX) / oldScale;
+      const imageY = (screenY - posY) / oldScale;
+
+      scale = newScale;
+
+      posX = screenX - imageX * scale;
+      posY = screenY - imageY * scale;
+
+      updateTransform();
+    }
+
+    function zoomByFactor(factor) {
+      zoomAtScreenPoint(
+        scale * factor,
+        viewport.clientWidth / 2,
+        viewport.clientHeight / 2
+      );
+    }
+
+    function parseCoords(coords) {
+      return coords
+        .split(",")
+        .map(value => Number(value.trim()))
+        .filter(value => !Number.isNaN(value));
+    }
+
+    function htmlMapCoordsToSvgPoints(coords) {
+      const numbers = parseCoords(coords);
+      const points = [];
+
+      for (let i = 0; i < numbers.length; i += 2) {
+        points.push(`${numbers[i]},${numbers[i + 1]}`);
+      }
+
+      return points.join(" ");
+    }
+
+    function createSvgRegion(regionData) {
+      let element;
+
+      if (regionData.shape === "poly") {
+        element = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        element.setAttribute("points", htmlMapCoordsToSvgPoints(regionData.coords));
+      }
+
+      if (regionData.shape === "circle") {
+        const [cx, cy, r] = parseCoords(regionData.coords);
+
+        element = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        element.setAttribute("cx", cx);
+        element.setAttribute("cy", cy);
+        element.setAttribute("r", r);
+      }
+
+      if (regionData.shape === "rect") {
+        const [left, top, right, bottom] = parseCoords(regionData.coords);
+
+        element = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        element.setAttribute("x", left);
+        element.setAttribute("y", top);
+        element.setAttribute("width", right - left);
+        element.setAttribute("height", bottom - top);
+      }
+
+      return element;
+    }
+
+    function createRegions() {
+      regions.forEach(regionData => {
+        const regionElement = createSvgRegion(regionData);
+
+        if (!regionElement) {
+          console.warn("Unknown region shape:", regionData.shape, regionData);
+          return;
+        }
+
+        regionElement.classList.add("map-region");
+        regionElement.dataset.id = regionData.id;
+
+        regionElement.addEventListener("pointerdown", event => {
+          event.stopPropagation();
+        });
+
+        regionElement.addEventListener("click", event => {
+          event.stopPropagation();
+
+          openInfoPanel(regionData);
+          setActiveRegion(regionData.id);
+        });
+
+        regionLayer.appendChild(regionElement);
+      });
+    }
+
+    function openInfoPanel(regionData) {
+      panelTitle.textContent = regionData.title;
+      panelSubtitle.textContent = regionData.subtitle || "";
+      panelText.innerHTML = regionData.description || "";
+
+      panelMeta.innerHTML = "";
+
+      if (regionData.tags && regionData.tags.length > 0) {
+        const tagsWrapper = document.createElement("div");
+
+        regionData.tags.forEach(tag => {
+          const tagElement = document.createElement("span");
+          tagElement.className = "tag";
+          tagElement.textContent = tag;
+          tagsWrapper.appendChild(tagElement);
+        });
+
+        panelMeta.appendChild(tagsWrapper);
+      }
+
+      if (regionData.extra) {
+        Object.entries(regionData.extra).forEach(([key, value]) => {
+          const row = document.createElement("div");
+
+          const strong = document.createElement("strong");
+          strong.textContent = `${key}: `;
+
+          row.appendChild(strong);
+          row.appendChild(document.createTextNode(value));
+
+          panelMeta.appendChild(row);
+        });
+      }
+
+      infoPanel.classList.remove("hidden");
+    }
+
+    function closeInfoPanel() {
+      infoPanel.classList.add("hidden");
+      clearActiveRegions();
+    }
+
+    function setActiveRegion(id) {
+      document.querySelectorAll(".map-region").forEach(region => {
+        region.classList.toggle("active", region.dataset.id === id);
+      });
+    }
+
+    function clearActiveRegions() {
+      document.querySelectorAll(".map-region").forEach(region => {
+        region.classList.remove("active");
+      });
+    }
+
+    viewport.addEventListener("wheel", event => {
+      event.preventDefault();
+
+      const zoomIntensity = 0.0015;
+      const newScale = scale * Math.exp(-event.deltaY * zoomIntensity);
+
+      zoomAtScreenPoint(newScale, event.clientX, event.clientY);
+    }, { passive: false });
+
+    viewport.addEventListener("pointerdown", event => {
+      if (event.target.closest(".map-region")) {
+        return;
+      }
+
+      isDragging = true;
+      movedDuringPointer = false;
+      viewport.classList.add("dragging");
+
+      dragStartX = event.clientX;
+      dragStartY = event.clientY;
+
+      startX = posX;
+      startY = posY;
+
+      rememberTileUpdatePosition();
+
+      viewport.setPointerCapture(event.pointerId);
+    });
+
+    viewport.addEventListener("pointermove", event => {
+      if (!isDragging) return;
+
+      const dx = event.clientX - dragStartX;
+      const dy = event.clientY - dragStartY;
+
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        movedDuringPointer = true;
+      }
+
+      posX = startX + dx;
+      posY = startY + dy;
+
+      updateTransform({ updateTiles: false });
+
+      if (shouldUpdateTilesDuringDrag()) {
+        scheduleTileUpdate();
+        rememberTileUpdatePosition();
+      }
+    });
+
+    viewport.addEventListener("pointerup", event => {
+      isDragging = false;
+      viewport.classList.remove("dragging");
+
+      if (viewport.hasPointerCapture(event.pointerId)) {
+        viewport.releasePointerCapture(event.pointerId);
+      }
+
+      scheduleTileUpdate();
+      rememberTileUpdatePosition();
+    });
+
+    viewport.addEventListener("pointercancel", event => {
+      isDragging = false;
+      viewport.classList.remove("dragging");
+
+      if (viewport.hasPointerCapture(event.pointerId)) {
+        viewport.releasePointerCapture(event.pointerId);
+      }
+
+      scheduleTileUpdate();
+      rememberTileUpdatePosition();
+    });
+
+    viewport.addEventListener("click", event => {
+      if (movedDuringPointer) return;
+
+      if (!event.target.closest(".map-region")) {
+        closeInfoPanel();
+      }
+    });
+
+    viewport.addEventListener("dblclick", event => {
+      if (event.target.closest(".map-region")) return;
+
+      fitImageToScreen();
+    });
+
+    closePanel.addEventListener("click", event => {
+      event.stopPropagation();
+      closeInfoPanel();
+    });
+
+    infoPanel.addEventListener("click", event => {
+      event.stopPropagation();
+    });
+
+    fitButton.addEventListener("click", event => {
+      event.stopPropagation();
+      fitImageToScreen();
+    });
+
+    actualSizeButton.addEventListener("click", event => {
+      event.stopPropagation();
+      actualImageSize();
+    });
+
+    zoomOutButton.addEventListener("click", event => {
+      event.stopPropagation();
+      zoomByFactor(0.8);
+    });
+
+    zoomInButton.addEventListener("click", event => {
+      event.stopPropagation();
+      zoomByFactor(1.25);
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        closeInfoPanel();
+      }
+
+      if (event.key === "0") {
+        fitImageToScreen();
+      }
+
+      if (event.key === "1") {
+        actualImageSize();
+      }
+    });
+
+    createRegions();
+    fitImageToScreen();
+
+    window.addEventListener("resize", () => {
+      updateZoomLimits();
+
+      if (scale < minScale) {
+        scale = minScale;
+      }
+
+      updateTransform();
+    });
+  </script>
+</body>
+</html>

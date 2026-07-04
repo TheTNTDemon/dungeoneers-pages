@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Tiny5&display=swap');
+
+:root {
+  --background-color: #101310;
+  --panel-color: #171c17;
+  --border-color: #84766b;
+  --border: 3px solid var(--border-color);
+  --primary-color: darkolivegreen;
+  --primary-light: #8faa4f;
+  --header-color: #ede4cc;
+  --text-dark: #101310;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  box-sizing: border-box;
+  min-height: 100vh;
+  background: var(--background-color);
+  color: var(--primary-color);
+  font-family: "Tiny5", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  user-select: none;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
