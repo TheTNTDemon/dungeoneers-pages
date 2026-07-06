@@ -33,3 +33,8 @@ body {
 *::after {
   box-sizing: inherit;
 }
+
+a.disabled {
+  pointer-events: none;
+  cursor: default;
+}
