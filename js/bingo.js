@@ -7,10 +7,43 @@ const palList = [
   'Ynsart f*cks a dragon',
   'Orion actually succeeding a grapple',
   'Fluffy mention (by xy)',
-  'Party member dies (permanently)',
-  'Dunamir\'s invention leveling a city',
-  'Party member gets jailed',
-  'Brair/Ynsart willingly become cursed',
+  'Dunamir dies (permanently)',
+  'Orion dies (permanently)',
+  'Alekhsei dies (permanently)',
+  'Brair dies (permanently)',
+  'Brymm dies (permanently)',
+  'Ynsart dies (permanently)',
+  'Dunamir\'s invention levels a city',
+  'Dunamir gets jailed',
+  'Brymm gets jailed',
+  'Orion gets jailed',
+  'Alekhsei gets jailed',
+  'Brair gets jailed',
+  'Ynsart gets jailed',
+  'Brair willingly becomes cursed',
+  'Ynsart willingly becomes cursed',
+  'Cannony\'s pokecube gets abandoned/lost',
+  'Beach episode',
+  'Ball episode',
+  'Our property gets destroyed',
+  'Brymm reveals sh*t while drunk and sad',
+  'Brair gets used to smuggle something',
+  'Ynsart therapist',
+];
+
+const coiList = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
   '13',
   '14',
   '15',
@@ -25,13 +58,36 @@ const palList = [
   '24'
 ];
 
-const coiList = [];
-
 const seedDisplay = document.getElementById('seed');
 const generateCardButton = document.getElementById('generate-card');
 const cardInputs = document.querySelectorAll(".grid label input");
-const currentType = document.currentScript.dataset.type;
+const bingoTypeTitle = document.getElementById("bingo-type-title");
+const currentType = getTypeFromUrl();
 const storageKey = `DP${currentType}Bingo`;
+
+const typeNames = {
+  PaL: "PaL",
+  CoI: "CoI"
+};
+
+const fullTypeNames = {
+  PaL: "PaL Bingo",
+  CoI: "CoI Bingo"
+};
+
+bingoTypeTitle.textContent = typeNames[currentType];
+document.title = `${fullTypeNames[currentType]} | Dungeoneer's Pages`;
+
+function getTypeFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const type = params.get("type");
+
+  if (type === "PaL" || type === "CoI") {
+    return type;
+  }
+
+  return "PaL";
+}
 
 function generateSeed(length = 8) {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -71,6 +127,7 @@ seed = DPBingoData?.seed || seed;
 if (!seed) {
   seed = generateSeed();
   setSeedInUrl(seed);
+  DPBingoData.seed = seed;
   LocalStorage.setJSON(storageKey, DPBingoData);
 }
 
@@ -142,14 +199,11 @@ function saveCheckedSlots() {
     }
   });
 
-  const DPBingoData = LocalStorage.getJSON(storageKey) || {};
   DPBingoData.checkedSlots = checkedSlots;
-
   LocalStorage.setJSON(storageKey, DPBingoData);
 }
 
 function restoreCheckedSlots() {
-  const DPBingoData = LocalStorage.getJSON(storageKey) || {};
   const checkedSlots = DPBingoData.checkedSlots || [];
 
   cardInputs.forEach((input, index) => {

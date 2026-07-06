@@ -13,7 +13,7 @@ h1 {
   text-align: center;
 }
 
-h1 span {
+h1 span:not(:first-child) {
   display: inline-block;
   width: 5.7rem;
   height: 5.7rem;

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="./js/map.js" defer></script>
+  <link rel="stylesheet" href="./css/map.css">
+
+  <title>CoI Map | Dungeoneer's Pages</title>
+</head>
+
+<body>
+  <div id="viewport">
+    <div id="world">
+      <div id="tileLayer" aria-label="Fantasy Map"></div>
+
+      <svg
+        id="regionLayer"
+        preserveAspectRatio="none"
+      ></svg>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button id="fitButton">World View</button>
+    <button id="actualSizeButton">True Scale</button>
+    <button id="zoomOutButton" class="zoomButton" aria-label="Zoom out"><span class="buttonText">−</span></button>
+    <button id="zoomInButton" class="zoomButton" aria-label="Zoom in"><span class="buttonText">+</span></button>
+  </div>
+
+  <aside id="infoPanel" class="hidden">
+    <button id="closePanel" aria-label="Close panel"><span class="buttonText">×</span></button>
+
+    <h2 id="panelTitle"></h2>
+    <p id="panelSubtitle"></p>
+    <p id="panelText"></p>
+
+    <div id="panelMeta"></div>
+  </aside>
+</body>
+</html>
